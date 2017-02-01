@@ -54,7 +54,7 @@ class Server {
                 err.status = 404;
                 next(err);
             });
-            var port = process.env.PORT || 4000;
+            var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 4000;
             this.server.listen(port, function () {
                 console.log('Proxy listen on %s ...', port);
             });
@@ -66,40 +66,43 @@ class Server {
             request('http://localhost:9229/json/list', function (error, response, body) {
                 console.log("body:" + body);
                 console.log("error:" + error);
-                var client = new websocket.client();
-                client.on('connectFailed', function (error) {
-                    console.log('Connect Error: ' + error.toString());
-                });
-                client.on('connect', function (connection) {
-                    console.log('connectionToV8 is live!');
-                    connectionToV8 = connection;
 
-                    connectionToV8.on('error', function (error) {
-                        console.log("Connection Error: " + error.toString());
+                if (!error){
+                    var client = new websocket.client();
+                    client.on('connectFailed', function (error) {
+                        console.log('Connect Error: ' + error.toString());
                     });
-                    connectionToV8.on('close', function () {
-                        console.log('echo-protocol Connection Closed');
+                    client.on('connect', function (connection) {
+                        console.log('connectionToV8 is live!');
+                        connectionToV8 = connection;
+
+                        connectionToV8.on('error', function (error) {
+                            console.log("Connection Error: " + error.toString());
+                        });
+                        connectionToV8.on('close', function () {
+                            console.log('echo-protocol Connection Closed');
+                        });
+                        connectionToV8.on('message', function (message) {
+                            if (message.type === 'utf8') {
+                                //console.log("Received from Debugger: '" + message.utf8Data + "'");
+                                connectionToChromeDebugger.sendUTF(message.utf8Data);
+                            }
+                        });
+                        //function sendNumber() {
+                        //    if (connection.connected) {
+                        //        var number = Math.round(Math.random() * 0xFFFFFF);
+                        //        connection.sendUTF(number.toString());
+                        //        setTimeout(sendNumber, 1000);
+                        //    }
+                        //}
+                        //sendNumber();
                     });
-                    connectionToV8.on('message', function (message) {
-                        if (message.type === 'utf8') {
-                            //console.log("Received from Debugger: '" + message.utf8Data + "'");
-                            connectionToChromeDebugger.sendUTF(message.utf8Data);
-                        }
-                    });
-                    //function sendNumber() {
-                    //    if (connection.connected) {
-                    //        var number = Math.round(Math.random() * 0xFFFFFF);
-                    //        connection.sendUTF(number.toString());
-                    //        setTimeout(sendNumber, 1000);
-                    //    }
-                    //}
-                    //sendNumber();
-                });
-                
-                //var url = "ws://localhost:9229/" + JSON.parse(body)[0].id;
-                var url = "ws://localhost:9229";
-                //console.log("url: " + url);
-                client.connect(url);
+                    
+                    //var url = "ws://localhost:9229/" + JSON.parse(body)[0].id;
+                    var url = "ws://localhost:9229";
+                    //console.log("url: " + url);
+                    client.connect(url);
+                }
             })
 
             var wsServer = new websocket.server({
