@@ -54,7 +54,7 @@ class Server {
                 err.status = 404;
                 next(err);
             });
-            var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 4000;
+            var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080;
             this.server.listen(port, function () {
                 console.log('Proxy listen on %s ...', port);
             });
