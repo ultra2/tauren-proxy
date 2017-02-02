@@ -21,15 +21,63 @@ class Server {
     }
     initApp() {
         return __awaiter(this, void 0, void 0, function* () {
+            this.connectionToV8 = null
             this.app = express();
             this.server = require('http').Server(this.app);
             let router = express.Router();
+
             router.get("/", function (req, res, next) {
                 return __awaiter(this, void 0, void 0, function* () {
                     res.send("start");
                     res.end();
                 });
             });
+
+            router.get("/debug", function (req, res, next) {
+                return __awaiter(this, void 0, void 0, function* () {
+
+                    request('http://localhost:9229/json/list', function (error, response, body) {
+                        
+                        console.log("body:" + body);
+                        console.log("error:" + error);
+
+                        if (error){
+                            res.send(error);
+                            res.end();
+                            return
+                        }       
+                    
+                        var client = new websocket.client();
+                        client.on('connectFailed', function (error) {
+                            console.log('Connect Error: ' + error.toString());
+                        });
+                        client.on('connect', function (connection) {
+                            console.log('connectionToV8 is live!');
+                            this.connectionToV8 = connection;
+
+                            this.connectionToV8.on('error', function (error) {
+                                console.log("Connection Error: " + error.toString());
+                            });
+                            this.connectionToV8.on('close', function () {
+                                console.log('echo-protocol Connection Closed');
+                            });
+                            this.connectionToV8.on('message', function (message) {
+                                if (message.type === 'utf8') {
+                                    //console.log("Received from Debugger: '" + message.utf8Data + "'");
+                                    connectionToChromeDebugger.sendUTF(message.utf8Data);
+                                }
+                            });
+                        });
+                        
+                        var url = "ws://localhost:9229/" + JSON.parse(body)[0].id;
+                        client.connect(url);
+
+                        res.send("ok");
+                        res.end();
+                    })
+                });
+            });
+
             router.get('/:application/:controller/:method/:url(*)?', function (req, res, next) {
                 return __awaiter(this, void 0, void 0, function* () {
                     console.log("proxy get " + req.originalUrl);
@@ -42,9 +90,11 @@ class Server {
                     })
                 });
             }.bind(this));
+
             router.post('/:application/:controller/:method/:url(*)?', function (req, res, next) {
                 
             }.bind(this));
+
             this.app.use(bodyParser.json({ type: 'application/json', limit: '5mb' }));
             this.app.use(bodyParser.raw({ type: 'application/vnd.custom-type' }));
             this.app.use(bodyParser.text({ type: 'text/*', limit: '5mb' }));
@@ -58,52 +108,6 @@ class Server {
             this.server.listen(port, function () {
                 console.log('Proxy listen on %s ...', port);
             });
-
-            var connectionToV8 = null
-
-            //          var body = yield utils_1.default.callService("http://localhost:9229/json/list", { json: true });
-
-            request('http://localhost:9229/json/list', function (error, response, body) {
-                console.log("body:" + body);
-                console.log("error:" + error);
-
-                if (!error){
-                    var client = new websocket.client();
-                    client.on('connectFailed', function (error) {
-                        console.log('Connect Error: ' + error.toString());
-                    });
-                    client.on('connect', function (connection) {
-                        console.log('connectionToV8 is live!');
-                        connectionToV8 = connection;
-
-                        connectionToV8.on('error', function (error) {
-                            console.log("Connection Error: " + error.toString());
-                        });
-                        connectionToV8.on('close', function () {
-                            console.log('echo-protocol Connection Closed');
-                        });
-                        connectionToV8.on('message', function (message) {
-                            if (message.type === 'utf8') {
-                                //console.log("Received from Debugger: '" + message.utf8Data + "'");
-                                connectionToChromeDebugger.sendUTF(message.utf8Data);
-                            }
-                        });
-                        //function sendNumber() {
-                        //    if (connection.connected) {
-                        //        var number = Math.round(Math.random() * 0xFFFFFF);
-                        //        connection.sendUTF(number.toString());
-                        //        setTimeout(sendNumber, 1000);
-                        //    }
-                        //}
-                        //sendNumber();
-                    });
-                    
-                    //var url = "ws://localhost:9229/" + JSON.parse(body)[0].id;
-                    var url = "ws://localhost:9229";
-                    //console.log("url: " + url);
-                    client.connect(url);
-                }
-            })
 
             var wsServer = new websocket.server({
                 httpServer: this.server,
