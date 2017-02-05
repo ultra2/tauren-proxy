@@ -7,7 +7,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments)).next());
     });
 };
-console.log("Start proxy...");
+console.log("Start proxy..."); 
 const express = require("express");
 const bodyParser = require("body-parser");
 const websocket = require("websocket");
