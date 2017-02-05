@@ -105,7 +105,8 @@ class Server {
                 next(err);
             });
             var port = process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 4000;
-            this.server.listen(port, function () {
+            var ip   = process.env.IP   || process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0'
+            this.server.listen(port, ip, function () {
                 console.log('Proxy listen on %s ...', port);
             });
 
